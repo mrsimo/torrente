@@ -25,6 +25,7 @@ class Torrente
   end
 
   def run!
+    puts "#{Time.now}:Running torrente!"
     client.metadata(path)["contents"].each do |file|
       if file["mime_type"] =~ /torrent/
         tempfile = Tempfile.new("torrente")
