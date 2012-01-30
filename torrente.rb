@@ -31,7 +31,11 @@ class Torrente
         tempfile.write client.get_file(file["path"])
         tempfile.close
 
+        puts ":: Adding #{file["path"]} to transmission"
         system "transmission-remote -a #{tempfile.path}"
+
+        puts ":: Deleting #{file["path"]} to transmission"
+        client.file_delete(file["path"])
       end
     end
   end
