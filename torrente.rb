@@ -3,17 +3,20 @@ require "bundler/setup"
 
 require 'dropbox_sdk'
 require 'tempfile'
+require 'logger'
 
 APP_KEY     = '1e26nxsswjrjymt'
 APP_SECRET  = '36syf1y8okbxqyx'
 ACCESS_TYPE = :dropbox
 CONFIG_FILE = File.expand_path("~/.torrente")
+LOG         = File.expand_path("~/torrente.log")
 
 class Torrente
-  attr_accessor :path, :client, :session
+  attr_accessor :path, :client, :session, :logger
 
   def initialize(path)
     @path = path
+    @logger = Logger.new(LOG)
 
     @session = if File.exists?(CONFIG_FILE)
       DropboxSession.deserialize(File.read(CONFIG_FILE))
@@ -25,7 +28,7 @@ class Torrente
   end
 
   def run!
-    puts "#{Time.now}:Running torrente!"
+    logger.info "#{Time.now}:Running torrente!"
     client.metadata(path)["contents"].each do |file|
       contents = client.get_file(file["path"])
 
@@ -34,17 +37,19 @@ class Torrente
         tempfile.write contents
         tempfile.close
 
-        puts ":: Adding #{file["path"]} to transmission"
+        logger.info "Adding #{file["path"]} to transmission"
         system "transmission-remote -a #{tempfile.path}"
 
-        puts ":: Deleting #{file["path"]} to transmission"
+        logger.info "Deleting #{file["path"]} to transmission"
         client.file_delete(file["path"])
       else
         contents.split("\n").each do |magnet|
-          puts ":: Adding a magnett to transmission"
-          system "transmission-remote -a '#{magnet.strip}'"
+          if magnet.strip != ""
+            logger.info "Adding a magnett to transmission"
+            system "transmission-remote -a '#{magnet.strip}'"
+          end
         end
-        puts ":: Deleting #{file["path"]} to transmission"
+        logger.info "Deleting #{file["path"]} to transmission"
         client.file_delete(file["path"])
       end
     end
@@ -56,10 +61,10 @@ class Torrente
     session = DropboxSession.new(APP_KEY, APP_SECRET)
     session.get_request_token
 
-    puts "Please visit this website and press the 'Allow' button, then hit 'Enter' here."
-    puts session.get_authorize_url
+    logger.info "Please visit this website and press the 'Allow' button, then hit 'Enter' here."
+    logger.info session.get_authorize_url
 
-    puts "Press intro when you've accepted."
+    logger.info "Press intro when you've accepted."
     gets
 
     session.get_access_token
@@ -68,7 +73,7 @@ class Torrente
       File.open(CONFIG_FILE,"w+"){ |f| f.write(session.serialize) }
       session
     else
-      puts "Looks like you didn't :("
+      logger.info "Looks like you didn't :("
       exit 1
     end
   end
