@@ -27,14 +27,23 @@ class Torrente
   def run!
     puts "#{Time.now}:Running torrente!"
     client.metadata(path)["contents"].each do |file|
+      contents = client.get_file(file["path"])
+
       if file["mime_type"] =~ /torrent/
         tempfile = Tempfile.new("torrente")
-        tempfile.write client.get_file(file["path"])
+        tempfile.write contents
         tempfile.close
 
         puts ":: Adding #{file["path"]} to transmission"
         system "transmission-remote -a #{tempfile.path}"
 
+        puts ":: Deleting #{file["path"]} to transmission"
+        client.file_delete(file["path"])
+      else
+        contents.split("\n").each do |magnet|
+          puts ":: Adding a magnett to transmission"
+          system "transmission-remote -a '#{magnet.strip}'"
+        end
         puts ":: Deleting #{file["path"]} to transmission"
         client.file_delete(file["path"])
       end
